@@ -64,6 +64,7 @@ export function renderScene(ctx, game, width, height, time, opts = {}) {
   drawSky(ctx, cam, width, height, time);
   drawSea(ctx, cam, width, height, time);
   drawMountains(ctx, cam, world);
+  drawHaze(ctx, cam, width, height);
   drawIslands(ctx, cam, world);
   drawCity(ctx, cam, world);
   drawRunway(ctx, cam, world);
@@ -129,13 +130,42 @@ function drawMountains(ctx, cam, world) {
     const halfW = (m.w / 2) * base.scale;
     if (halfW < 4) continue;
     const shade = clamp(1 - base.z / 12000, 0.25, 1);
-    ctx.fillStyle = `rgba(${Math.round(88 * shade + 40)}, ${Math.round(74 * shade + 30)}, ${Math.round(120 * shade + 40)}, 0.9)`;
+    // Two facets: the sun (low, west) lights the left face warm, while
+    // the right face falls into cool shadow. The ridge foot sits a
+    // little right of centre so the lit face reads wider, as it would
+    // with the sun off to the west.
+    const ridgeX = base.x + halfW * 0.18;
+    const lit = {
+      r: Math.round(168 * shade + 40),
+      g: Math.round(118 * shade + 30),
+      b: Math.round(138 * shade + 40),
+    };
+    const shad = {
+      r: Math.round(58 * shade + 26),
+      g: Math.round(50 * shade + 22),
+      b: Math.round(96 * shade + 34),
+    };
+    ctx.fillStyle = `rgba(${lit.r}, ${lit.g}, ${lit.b}, 0.92)`;
     ctx.beginPath();
     ctx.moveTo(base.x - halfW, base.y);
+    ctx.lineTo(peak.x, peak.y);
+    ctx.lineTo(ridgeX, base.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = `rgba(${shad.r}, ${shad.g}, ${shad.b}, 0.92)`;
+    ctx.beginPath();
+    ctx.moveTo(ridgeX, base.y);
     ctx.lineTo(peak.x, peak.y);
     ctx.lineTo(base.x + halfW, base.y);
     ctx.closePath();
     ctx.fill();
+    // Ridge highlight: a thin warm line down the lit edge of the peak.
+    ctx.strokeStyle = `rgba(255, 214, 150, ${0.5 * shade})`;
+    ctx.lineWidth = Math.max(1, halfW * 0.02);
+    ctx.beginPath();
+    ctx.moveTo(peak.x, peak.y);
+    ctx.lineTo(base.x - halfW, base.y);
+    ctx.stroke();
     if (m.snow) {
       ctx.fillStyle = 'rgba(255, 240, 220, 0.85)';
       ctx.beginPath();
@@ -149,6 +179,19 @@ function drawMountains(ctx, cam, world) {
       ctx.fill();
     }
   }
+}
+
+/** A thin band of golden haze hugging the horizon, so distant peaks
+ *  melt into the sky instead of ending in a hard line. */
+function drawHaze(ctx, cam, width, height) {
+  const band = height * 0.09;
+  const top = cam.horizonY - band;
+  const g = ctx.createLinearGradient(0, top, 0, cam.horizonY + band * 0.6);
+  g.addColorStop(0, 'rgba(255, 196, 120, 0)');
+  g.addColorStop(0.5, 'rgba(255, 196, 120, 0.22)');
+  g.addColorStop(1, 'rgba(255, 196, 120, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, top, width, band * 1.6);
 }
 
 function projectPolygon(ctx, cam, points, y) {

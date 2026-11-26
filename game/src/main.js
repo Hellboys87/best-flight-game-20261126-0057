@@ -40,6 +40,9 @@ const game = {
   landTimer: 0,
   totalRings: 0,
   bestLanding: null,
+  // The courier starts parked on the runway: the first frame is not a
+  // touchdown, so the grace readout must not fire until it has flown.
+  wasOnGround: true,
 };
 
 function resize() {
@@ -61,6 +64,7 @@ function startMission(index) {
   game.timeLeft = game.mission.timeLimit;
   game.state = 'playing';
   game.landTimer = 0;
+  game.wasOnGround = true;
   showFlash(game.mission.title, 3);
   audio.ensure();
 }
@@ -72,6 +76,7 @@ function respawn() {
   // count again until it has genuinely flown.
   game.mission.armed = game.mission.id === 'rings';
   game.state = 'playing';
+  game.wasOnGround = true;
   showFlash('Back on the runway — fly safe', 2.5);
 }
 
@@ -146,6 +151,8 @@ function update(dt) {
         const bonus = landingBonus(Math.abs(p.verticalSpeed), hit ? hit.across : 20, p.speed);
         game.score += bonus.score;
         game.bestLanding = bonus;
+        game.touchdown = { vs: Math.abs(p.verticalSpeed), verdict: bonus.verdict };
+        game.touchdownUntil = game.time + 6;
         finishMission();
         showFlash(`${bonus.label}  +${bonus.score}`, 2.5);
       }
@@ -156,6 +163,12 @@ function update(dt) {
     if (p.onGround && !game.wasOnGround) {
       const impact = Math.abs(p.verticalSpeed);
       const hit = landingCheck(p, world);
+      // Grace readout: every touchdown reports its vertical speed and
+      // one-word verdict for a few seconds on the HUD, whether or not
+      // it scored (delivery stops and practice bounces included).
+      const grade = landingBonus(impact, hit ? hit.across : 20, p.speed);
+      game.touchdown = { vs: impact, verdict: grade.verdict };
+      game.touchdownUntil = game.time + 5;
       if (impact > 7 || !hit) {
         crash(impact > 7 ? 'HARD IMPACT' : 'ROUGH TERRAIN');
       } else if (impact > 3.5) {
@@ -292,6 +305,17 @@ function drawEndScreen(width, height, complete) {
     ctx.fillText(game.mission.title, width / 2, height * 0.3 + 42);
     if (game.bestLanding) {
       ctx.fillText(`Landing: ${game.bestLanding.label}`, width / 2, height * 0.3 + 78);
+      const td = game.touchdown || game.bestLanding;
+      const vs = td.vs ?? game.bestLanding.verticalSpeed;
+      if (vs != null) {
+        ctx.fillStyle = '#cfe6ff';
+        ctx.font = '20px "Segoe UI", system-ui, sans-serif';
+        ctx.fillText(
+          `Touchdown −${vs.toFixed(1)} m/s  •  ${td.verdict || game.bestLanding.verdict || ''}`,
+          width / 2,
+          height * 0.3 + 110,
+        );
+      }
     }
   } else {
     ctx.fillStyle = '#ff7a5e';
@@ -303,16 +327,16 @@ function drawEndScreen(width, height, complete) {
   }
   ctx.fillStyle = '#ffe9a0';
   ctx.font = 'bold 30px "Segoe UI", system-ui, sans-serif';
-  ctx.fillText(`FINAL SCORE  ${game.score}`, width / 2, height * 0.48);
+  ctx.fillText(`FINAL SCORE  ${game.score}`, width / 2, height * 0.52);
   ctx.fillStyle = '#cfe6ff';
   ctx.font = '18px "Segoe UI", system-ui, sans-serif';
-  ctx.fillText(`Rings flown: ${game.totalRings}   •   Missions flown: ${game.missionIndex + 1} of 3`, width / 2, height * 0.48 + 36);
+  ctx.fillText(`Rings flown: ${game.totalRings}   •   Missions flown: ${game.missionIndex + 1} of 3`, width / 2, height * 0.52 + 36);
   ctx.fillStyle = '#ffd94d';
   ctx.font = 'bold 20px "Segoe UI", system-ui, sans-serif';
   ctx.fillText(
     complete ? 'Press ENTER for the next mission' : 'Press ENTER to fly again',
     width / 2,
-    height * 0.62,
+    height * 0.66,
   );
   ctx.restore();
 }
@@ -390,7 +414,8 @@ function applyShot() {
     startMission(2);
     game.score = 1450;
     game.totalRings = 8;
-    game.bestLanding = { score: 235, quality: 0.94, label: 'BUTTER SMOOTH!' };
+    game.bestLanding = { score: 235, quality: 0.94, label: 'BUTTER SMOOTH!', verdict: 'BUTTER', verticalSpeed: 1.8 };
+    game.touchdown = { vs: 1.8, verdict: 'BUTTER' };
     game.state = 'missionComplete';
   }
 }

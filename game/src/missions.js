@@ -161,5 +161,11 @@ export function landingBonus(verticalSpeed, across, speed) {
     score: Math.round(quality * 250),
     quality,
     label: quality > 0.8 ? 'BUTTER SMOOTH!' : quality > 0.55 ? 'Nice landing' : 'A bit rough',
+    // One-word touchdown verdict, graded on the same softness curve
+    // that sets the score (unchanged): soft = BUTTER, firm = FIRM,
+    // anything rougher = HARD. verticalSpeed echoes the input so the
+    // HUD can report the touchdown rate without recomputing it.
+    verdict: quality > 0.8 ? 'BUTTER' : quality > 0.55 ? 'FIRM' : 'HARD',
+    verticalSpeed,
   };
 }

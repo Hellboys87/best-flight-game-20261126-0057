@@ -105,6 +105,23 @@ export function drawHud(ctx, game, width, height) {
     ctx.restore();
   }
 
+  // --- touchdown readout: vertical speed + one-word verdict ------------
+  // Shown briefly after any touchdown, reusing the landing-bonus grade.
+  if (game.touchdown && game.time < (game.touchdownUntil || 0)) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 19px "Segoe UI", system-ui, sans-serif';
+    const td = game.touchdown;
+    const text = `TOUCHDOWN  −${td.vs.toFixed(1)} m/s  •  ${td.verdict}`;
+    const w = ctx.measureText(text).width;
+    ctx.fillStyle = 'rgba(12, 18, 34, 0.66)';
+    roundRect(ctx, width / 2 - w / 2 - 16, height - 96, w + 32, 40, 10);
+    ctx.fill();
+    ctx.fillStyle = td.verdict === 'BUTTER' ? '#ffd94d' : td.verdict === 'FIRM' ? '#ffe9a0' : '#ff7a5e';
+    ctx.fillText(text, width / 2, height - 76);
+    ctx.restore();
+  }
+
   // --- low-fuel warning ----------------------------------------------------
   if (plane.fuel < 25 && plane.fuel > 0 && Math.floor(game.time * 2) % 2 === 0) {
     ctx.save();
