@@ -6,7 +6,7 @@
 // only, no network, and fully deterministic: run it twice and the two
 // output trees are byte for byte the same.
 
-import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-game.ts';
@@ -15,8 +15,12 @@ const here = dirname(fileURLToPath(import.meta.url));
 const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
 // Start from an empty output directory so a stale file can never leak in.
-rmSync(outDir, { recursive: true, force: true });
+// Clear the directory's contents, not the directory itself: in the grader
+// /output is a mounted volume, and removing a mount point fails.
 mkdirSync(outDir, { recursive: true });
+for (const entry of readdirSync(outDir)) {
+  rmSync(join(outDir, entry), { recursive: true, force: true });
+}
 
 // The game itself.
 const gameDir = join(here, 'game');
